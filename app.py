@@ -1,18 +1,18 @@
 import sqlite3
 from flask_openapi3 import OpenAPI, Info, Tag
-from flask import redirect
+from flask import redirect, request
 from schemas import *
 from flask_cors import CORS
 import random
 
-info = Info(title="Minha API", version="1.0.0")
+info = Info(title="API de login e controle de sessão", version="1.0.0")
 app = OpenAPI(__name__, info=info)
 CORS(app)
 
 # definindo tags
 home_tag = Tag(name="Documentação", description="Seleção de documentação: Swagger, Redoc ou RapiDoc")
-login_tag = Tag(name="Login", description="Adição, visualização e remoção de produtos à base")
-validation_tag = Tag(name="Validação", description="Adição de um comentário à um produtos cadastrado na base")
+login_tag = Tag(name="Login", description="Criação e deleção de tokens de sessão para usuários")
+validation_tag = Tag(name="Validação", description="Validação de sessão de usuário")
 
 
 @app.get('/', tags=[home_tag])
@@ -24,21 +24,21 @@ def home():
 
 @app.post('/login', tags=[login_tag],
             responses={"200": LoginViewSchema, "400": ErrorSchema})
-def add_produto(form: LoginSchema):
+def add_produto(body: LoginSchema):
     """
-    Logs in user
+    Faz login de um usuário
 
-    Returns message with login confirmation or rejection and user data
+    Retorna dados da sessão iniciada
     """
     db = sqlite3.connect('db.db')
     cursor = db.cursor()
-    validation = cursor.execute(f"SELECT EMAIL, PASSWORD  FROM  LOGIN WHERE  EMAIL='{form.email}'")
+    validation = cursor.execute(f"SELECT EMAIL, PASSWORD  FROM  LOGIN WHERE  EMAIL='{body.email}'")
     validation_pass = validation.fetchone()
     
-    if validation_pass and validation_pass[1] == form.pssw:
-        user_info = cursor.execute(f"SELECT  NAME, EMAIL, TEL, ADDRESS FROM USERS WHERE EMAIL = '{form.email}'").fetchone()
+    if validation_pass and validation_pass[1] == body.pssw:
+        user_info = cursor.execute(f"SELECT  NAME, EMAIL FROM LOGIN WHERE EMAIL = '{body.email}'").fetchone()
         token = str(abs(hash(str(random.randint(0,9))+user_info[0]+str(random.randint(0,9))+user_info[1]+str(random.randint(0,9)))))
-        cursor.execute(f"UPDATE LOGIN SET ACTIVE_TOKEN = '{token}' WHERE EMAIL = '{form.email}'")
+        cursor.execute(f"UPDATE LOGIN SET ACTIVE_TOKEN = '{token}' WHERE EMAIL = '{body.email}'")
         db.commit()
         return {
             "message":"Login successful",
@@ -47,42 +47,66 @@ def add_produto(form: LoginSchema):
             "token":token
         },  200
     else:
-        return {"message":"Password no match"},  400
+        print("Password no match")
+        return {"message":"Usuário ou senha incorreto"},  400
 
+@app.post('/logout', tags=[login_tag],
+            responses={"200": ValidationViewSchema, "404": ErrorSchema})
+def logout(body: ValidationSchema):
+    """Faz logout de um usuário
+
+    Retorna confirmação do encerramento da sessão e eliminação do token
+    """ 
+    try:   
+        db = sqlite3.connect('db.db')
+        cursor = db.cursor()
+        cursor.execute(f"UPDATE LOGIN SET ACTIVE_TOKEN = '' WHERE  ACTIVE_TOKEN='{body.token}'").fetchone() 
+        db.commit()
+        return {
+            "message":"Logout successful"
+        },  200
+    except:
+        return {"message":"Token no match"},  500
+        
 
 @app.post('/validate', tags=[validation_tag],
             responses={"200": ValidationViewSchema, "400": ErrorSchema})
-def validate(form: ValidationSchema):
-    """Adiciona de um novo comentário à um produtos cadastrado na base identificado pelo id
+def validate(body: ValidationSchema):
+    """Valida existência da sessão de um usuário a partir de um token 
 
-    Retorna uma representação dos produtos e comentários associados.
+    Retorna confirmação da existência da sessão
     """    
-    print(form)
     db = sqlite3.connect('db.db')
     cursor = db.cursor()
-    validation = cursor.execute(f"SELECT EMAIL, ACTIVE_TOKEN  FROM  LOGIN WHERE  ACTIVE_TOKEN='{form.token}'").fetchone()
-    if validation and validation[1] == form.token:        
+    query = f"SELECT EMAIL, ACTIVE_TOKEN  FROM  LOGIN WHERE  ACTIVE_TOKEN={body.token}"
+    validation = cursor.execute(query).fetchone()
+    if validation and validation[1] == body.token:        
         return {
-            "message":"Validation successful"
+            "message":"Validation successful",
+            "user":validation[0]
         },  200
     else:
         return {"message":"Token no match"},  400
 
 
-# @app.post('/logout', tags=[validation_tag],
-#             responses={"200": ValidationViewSchema})#, "404": ErrorSchema})
-# def logout(form: ValidationSchema):
-#     """Adiciona de um novo comentário à um produtos cadastrado na base identificado pelo id
+@app.get('/permission', tags=[validation_tag],
+            responses={"200": PermissionViewSchema, "400": ErrorSchema})
+def permission(query: ValidationSchema):
+    """Busaca permissões de um usuário a partir de um token 
 
-#     Retorna uma representação dos produtos e comentários associados.
-#     """    
-#     db = sqlite3.connect('db.db')
-#     cursor = db.cursor()
-#     validation = cursor.execute(f"SELECT EMAIL, ACTIVE_TOKEN  FROM  LOGIN WHERE  ACTIVE_TOKEN='{form.token}'").fetchone()
-#     if validation and validation[1] == form.token:        
-#         return {
-#             "message":"Validation successful"
-#         },  200
-#     else:
-#         return {"message":"Token no match"},  400
-        
+    Retorna confirmação da existência da sessão
+    """
+    token = query.dict().get('token')
+    db = sqlite3.connect('db.db')
+    cursor = db.cursor()
+    query = f"SELECT EMAIL, VENDEDOR, ACTIVE_TOKEN FROM  LOGIN WHERE  ACTIVE_TOKEN='{token}'"
+    validation = cursor.execute(query).fetchone()
+    if validation and validation[2] == str(token):        
+        return {
+            "message":"Validation successful",
+            "user":validation[0],
+            "vendedor":validation[1]
+        },  200
+    else:
+        return {"message":"Token no match"},  400
+
