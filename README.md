@@ -33,12 +33,12 @@ Abra o [http://localhost:5000/#/](http://localhost:5000/#/) no navegador para ve
 Construção da imagem Docker:
 
 ```
-$ docker build -t backend .
+$ docker build -t login-api .
 ```
 Execução do container:
 
 ```
-$ docker run -p 5000:5000 backend
+$ docker run -p 5000:5000 login-api
 ```
 
 Uma vez executando, para acessar a API, basta abrir o [http://localhost:5000/#/](http://localhost:5000/#/) no navegador.
