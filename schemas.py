@@ -26,6 +26,12 @@ class PermissionViewSchema(BaseModel):
     user:  str = "exemplo@exemplo.com"
     vendedor: int
 
+
+class LogoutViewSchema(BaseModel):
+    """Define como é o objeto retornado para logout de um usuário.
+    """
+    message: str = "Logout successful"
+
 class ValidationViewSchema(BaseModel):
     """Define como é o objeto retornado para validação de um usuário.
     """

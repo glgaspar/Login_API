@@ -1,6 +1,6 @@
 import sqlite3
 from flask_openapi3 import OpenAPI, Info, Tag
-from flask import redirect, request
+from flask import redirect
 from schemas import *
 from flask_cors import CORS
 import random
@@ -51,7 +51,7 @@ def add_produto(body: LoginSchema):
         return {"message":"Usuário ou senha incorreto"},  400
 
 @app.post('/logout', tags=[login_tag],
-            responses={"200": ValidationViewSchema, "404": ErrorSchema})
+            responses={"200": LogoutViewSchema, "404": ErrorSchema})
 def logout(body: ValidationSchema):
     """Faz logout de um usuário
 
