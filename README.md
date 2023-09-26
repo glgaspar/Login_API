@@ -43,6 +43,13 @@ $ docker run -p 5000:5000 login-api
 
 Uma vez executando, para acessar a API, basta abrir o [http://localhost:5000/#/](http://localhost:5000/#/) no navegador.
 
+### Acesso
+O usuário de teste cadastrado no sistema de login é:
+
+Login: teste@teste.com
+
+Senha: teste 
+
 ---
 ### OBS
 
